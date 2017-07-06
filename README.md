@@ -1,5 +1,10 @@
-PYTHONPATH='.' python nlp/main.py --input_file tmp --output_file=tmp2
-    
-    [2017-07-06 18:11:54,081] INFO : Evaluating file: tmp for extracting frequent tags
-    [2017-07-06 18:11:54,227] INFO : Got total 6 frequent phrases.
-    [2017-07-06 18:11:54,227] INFO : Frequent phrases:[('tree traversal algorithms', 1), ('interview hack memorize preorder/inorder/postorder tree iterators', 1), ('simplest way', 1), ('respective recursive versions', 1), ('iterative tree traversal algorithms', 1)]
+##### Command to use:
+
+PYTHONPATH='.' python nlp/main.py --input_file test_input.txt --output_file=test_output.txt
+
+```
+[2017-07-06 18:25:52,069] INFO : Evaluating file: test_text.txt for extracting frequent tags
+[2017-07-06 18:25:52,263] INFO : Got total 13 frequent phrases.
+[2017-07-06 18:25:52,264] INFO : Frequent phrases:[('and sour lemonade', 1), ('virgin mojito', 1), ('sauce pasta', 1), ('veg plater', 1), ('white sauce pasta', 1)]
+```
+
