@@ -19,4 +19,5 @@
 > [2017-07-07 08:34:19,275] INFO : Evaluating file: test_input.txt for extracting frequent tags
 > [2017-07-07 08:34:19,473] INFO : Got total 87 frequent phrases.
 > [2017-07-07 08:34:19,473] INFO : Frequent phrases:[('mushroom duplex', 4), ('bar exchange', 4), ('vapou bar grill', 3), ('list serving great food', 3), ('palak patta chaat', 3)]
+> [2017-07-07 08:40:20,486] INFO : Output file: test_output.txt is written with most frequent phrases updated
 ```

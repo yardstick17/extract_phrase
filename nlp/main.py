@@ -75,7 +75,7 @@ def extract_phrases(filepath):
         text = ' '.join(lines_list)
         top_phrases = frequent_phrases(text, top_k=100)
         logging.info('Got total {} frequent phrases.'.format(len(top_phrases)))
-        logging.info('Frequent phrases:%s', top_phrases[:5])
+        logging.info('Frequent phrases:%s ...', top_phrases[:5])
         return dict(top_phrases)
 
 
@@ -89,9 +89,8 @@ def get_ngrams(text, n):
 @click.option('--output_file', help='The out file need to be written after processing')
 def process_large_text_file(input_file, output_file):
     logging.info('Evaluating file: {} for extracting frequent tags'.format(input_file))
-
     frequent_phrases = set(extract_phrases(input_file).keys())
-    with open(input_file, "r") as review_text, open(output_file, "a") as updated_review_text:
+    with open(input_file, "r") as review_text, open(output_file, "w") as updated_review_text:
         lines = review_text.readlines()
         total = len(lines)
         for index, line in tqdm(enumerate(lines), total=total, unit='line'):
@@ -101,6 +100,7 @@ def process_large_text_file(input_file, output_file):
                     line = line.replace(gram, '_'.join(gram.split()))
 
             updated_review_text.writelines(line)
+    logging.info('Output file: %s is written with most frequent phrases updated', output_file)
 
 
 if __name__ == '__main__':
