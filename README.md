@@ -1,6 +1,8 @@
 ![build-pass](https://travis-ci.org/yardstick17/extract_phrase.svg?branch=master)
 
 #### How to get it:
+
+[![Join the chat at https://gitter.im/yardstick17/extract_phrase](https://badges.gitter.im/yardstick17/extract_phrase.svg)](https://gitter.im/yardstick17/extract_phrase?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge)
 > ###### git clone https://github.com/yardstick17/extract_phrase.git
 
 
