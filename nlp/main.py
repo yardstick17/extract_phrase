@@ -58,9 +58,6 @@ def get_phrases(compiled_grammar, pos_tagged_sentences, testing_clauses):
     return phrase_list
 
 
-# @click.command()
-# @click.option('--text', help='text or string in which top phrases need to be extracted')
-# @click.option('--top_k', default=100, help='text or string in which top phrases need to be extracted')
 def frequent_phrases(text, top_k):
     sentences = nltk.sent_tokenize(text)
     compiled_grammar = PatternGrammar().init_all_clause()
