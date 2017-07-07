@@ -1,6 +1,9 @@
 import collections
 
 import logging
+from concurrent.futures import ProcessPoolExecutor
+from functools import partial
+
 import nltk
 from nltk.tokenize import word_tokenize
 from nltk.util import ngrams
@@ -14,6 +17,8 @@ from nlp.string_cleaner import StringCleaner
 MULTIPLE_WHITESPACE_REGEX = nltk.re.compile(r'\s+')
 
 import click
+
+TOP_PHRASE_COUNT = 100000
 
 
 def merge_two_dict(dict_x, dict_y):
@@ -31,13 +36,18 @@ def merge_two_dict(dict_x, dict_y):
     return dict_z
 
 
+def extract_chunk_dict(pos_tagged_sentence, chunker_obj):
+    return chunker_obj.chunk_pos_tagged_sentence(pos_tagged_sentence)
+
+
 def get_phrase_list(grammar, pos_tagged_sentences):
     chunk_dict = {}
     chunker_obj = Chunker(grammar)
-
-    for pos_tagged_sentence in pos_tagged_sentences:
-        single_chunk_dict = chunker_obj.chunk_pos_tagged_sentence(pos_tagged_sentence)
-        chunk_dict = merge_two_dict(chunk_dict, single_chunk_dict)
+    with ProcessPoolExecutor(max_workers=10) as pool:
+        worker = partial(extract_chunk_dict, chunker_obj=chunker_obj)
+        single_chunk_dict_list = pool.map(worker, pos_tagged_sentences)
+        for single_chunk_dict in single_chunk_dict_list:
+            chunk_dict = merge_two_dict(chunk_dict, single_chunk_dict)
 
     phrase_list = list()
     for rule, pos_tagged_chunk_list in chunk_dict.items():
@@ -60,28 +70,65 @@ def get_phrases(compiled_grammar, pos_tagged_sentences, testing_clauses):
 
 def frequent_phrases(text, top_k):
     sentences = nltk.sent_tokenize(text)
+
+    valid_clauses = ['NN_all', 'NN_CC_JJ_multi']
+
     compiled_grammar = PatternGrammar().init_all_clause()
-    pos_tagged_sentences = [PosTagger(sentence=sentence).pos_tag() for sentence in sentences]
-    testing_clauses = ['NN_all', 'NN_CC_JJ_multi']
-    phrase_list = get_phrases(compiled_grammar, pos_tagged_sentences, testing_clauses)
+
+    phrase_list = sentence_phrase_extract(compiled_grammar, sentences, valid_clauses)
+
     count_object = collections.Counter(phrase_list)
+
     return count_object.most_common(n=top_k)
+
+
+def sentence_phrase_extract(compiled_grammar, sentences, valid_clauses):
+    pos_tagged_sentences = [PosTagger(sentence=sentence).pos_tag() for sentence in sentences]
+    phrase_list = get_phrases(compiled_grammar, pos_tagged_sentences, valid_clauses)
+    return phrase_list
 
 
 def extract_phrases(filepath):
     with open(filepath, 'r') as file:
-        lines = file.readlines()
-        lines_list = [StringCleaner.clean(line).rstrip('\n') for line in lines]
-        text = ' '.join(lines_list)
-        top_phrases = frequent_phrases(text, top_k=100)
-        logging.info('Got total {} frequent phrases.'.format(len(top_phrases)))
-        logging.info('Frequent phrases:%s ...', top_phrases[:5])
-        return dict(top_phrases)
+        file_read_iterator = file.readlines()
+        overall_top_phrases_dict = dict()
+        for batch_lines in split_every(size=10000, iterable=file_read_iterator):
+            lines_list = [StringCleaner.clean(line).rstrip('\n') for line in batch_lines]
+            text = ' '.join(lines_list)
+            logging.info('Processing text:{}..'.format(text[:100]))
+            batch_top_phrases_dict = dict(frequent_phrases(text, top_k=100))
+            update_top_phrase_dict(overall_top_phrases_dict, batch_top_phrases_dict)
+            logging.info('Got total {} frequent phrases.'.format(len(batch_top_phrases_dict)))
+            logging.info('Frequent phrases in batch:%s ...', list(batch_top_phrases_dict.keys())[:5])
+            overall_top_phrases_dict = update_top_phrase_dict(overall_top_phrases_dict, batch_top_phrases_dict)
+        return overall_top_phrases_dict
+
+
+def update_top_phrase_dict(overall_top_phrases_dict, batch_top_phrases_dict):
+    overall_keys = set(overall_top_phrases_dict.keys())
+    batch_keys = set(batch_top_phrases_dict.keys())
+    for key in batch_keys:
+        if key in overall_keys:
+            overall_top_phrases_dict[key] += overall_top_phrases_dict[key] + batch_top_phrases_dict[key]
+        else:
+            overall_top_phrases_dict[key] = batch_top_phrases_dict[key]
+    print(overall_top_phrases_dict)
+    return dict(sorted(overall_top_phrases_dict.items(), reverse=True)[:TOP_PHRASE_COUNT])
 
 
 def get_ngrams(text, n):
     n_grams = ngrams(word_tokenize(text), n)
     return [' '.join(grams).strip() for grams in n_grams]
+
+
+from itertools import count
+from itertools import groupby
+
+
+def split_every(size, iterable):
+    c = count()
+    for k, g in groupby(iterable, lambda x: next(c) // size):
+        yield list(g)  # or yield g if you want to output a generator
 
 
 @click.command()
