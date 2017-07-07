@@ -8,6 +8,7 @@ import nltk
 from nltk.tokenize import word_tokenize
 from nltk.util import ngrams
 from tqdm import tqdm
+import pandas as pd
 
 from nlp.chunker import Chunker
 from nlp.pattern_grammer import PatternGrammar
@@ -18,7 +19,7 @@ MULTIPLE_WHITESPACE_REGEX = nltk.re.compile(r'\s+')
 
 import click
 
-TOP_PHRASE_COUNT = 100000
+TOP_PHRASE_COUNT = 1000000
 
 
 def merge_two_dict(dict_x, dict_y):
@@ -70,15 +71,10 @@ def get_phrases(compiled_grammar, pos_tagged_sentences, testing_clauses):
 
 def frequent_phrases(text, top_k):
     sentences = nltk.sent_tokenize(text)
-
     valid_clauses = ['NN_all', 'NN_CC_JJ_multi']
-
     compiled_grammar = PatternGrammar().init_all_clause()
-
     phrase_list = sentence_phrase_extract(compiled_grammar, sentences, valid_clauses)
-
     count_object = collections.Counter(phrase_list)
-
     return count_object.most_common(n=top_k)
 
 
@@ -91,15 +87,18 @@ def sentence_phrase_extract(compiled_grammar, sentences, valid_clauses):
 def extract_phrases(filepath):
     with open(filepath, 'r') as file:
         file_read_iterator = file.readlines()
+        logging.info('Initializing for roller coaster ride')
         overall_top_phrases_dict = dict()
-        for batch_lines in split_every(size=10000, iterable=file_read_iterator):
-            lines_list = [StringCleaner.clean(line).rstrip('\n') for line in batch_lines]
+        for batch_lines in split_every(size=10000, iterable=tqdm(file_read_iterator, unit='line processed')):
+            logging.info('Length of line being processed:{}'.format(len(batch_lines)))
+            logging.debug('Length of single-line in batch  being processed:{}'.format(len(batch_lines[0])))
+            lines_list = [StringCleaner.clean(line).rstrip('\n') for line in tqdm(batch_lines)]
             text = ' '.join(lines_list)
-            logging.info('Processing text:{}..'.format(text[:100]))
+            logging.debug('Processing text:{}..'.format(text[:100]))
             batch_top_phrases_dict = dict(frequent_phrases(text, top_k=100))
             update_top_phrase_dict(overall_top_phrases_dict, batch_top_phrases_dict)
-            logging.info('Got total {} frequent phrases.'.format(len(batch_top_phrases_dict)))
-            logging.info('Frequent phrases in batch:%s ...', list(batch_top_phrases_dict.keys())[:5])
+            logging.debug('Got total {} frequent phrases.'.format(len(batch_top_phrases_dict)))
+            logging.debug('Frequent phrases in batch:%s ...', list(batch_top_phrases_dict.keys())[:5])
             overall_top_phrases_dict = update_top_phrase_dict(overall_top_phrases_dict, batch_top_phrases_dict)
         return overall_top_phrases_dict
 
@@ -109,10 +108,10 @@ def update_top_phrase_dict(overall_top_phrases_dict, batch_top_phrases_dict):
     batch_keys = set(batch_top_phrases_dict.keys())
     for key in batch_keys:
         if key in overall_keys:
-            overall_top_phrases_dict[key] += overall_top_phrases_dict[key] + batch_top_phrases_dict[key]
+            overall_top_phrases_dict[key] += batch_top_phrases_dict[key]
         else:
             overall_top_phrases_dict[key] = batch_top_phrases_dict[key]
-    print(overall_top_phrases_dict)
+
     return dict(sorted(overall_top_phrases_dict.items(), reverse=True)[:TOP_PHRASE_COUNT])
 
 
@@ -132,21 +131,26 @@ def split_every(size, iterable):
 
 
 @click.command()
-@click.option('--input_file', help='The input file need to be processed')
-@click.option('--output_file', help='The out file need to be written after processing')
+@click.option('--input_file', '-i', help='The input file need to be processed')
+@click.option('--output_file', '-o', help='The out file need to be written after processing')
 def process_large_text_file(input_file, output_file):
     logging.info('Evaluating file: {} for extracting frequent tags'.format(input_file))
-    frequent_phrases = set(extract_phrases(input_file).keys())
+    frequent_phrases_dict = extract_phrases(input_file)
+    pd.to_pickle(frequent_phrases_dict, 'frequent_phrases_dict.pkl')
+    logging.info('Got a frequent_phrases_dict of size:{}'.format(len(frequent_phrases_dict)))
+    frequent_phrases_dict = {key: value for key, value in frequent_phrases_dict.items() if value > 10}
+    logging.info('Got a frequent_phrases_dict of size:{} after pruning.'.format(len(frequent_phrases_dict)))
+    frequent_phrases = set(frequent_phrases_dict.keys())
     with open(input_file, "r") as review_text, open(output_file, "w") as updated_review_text:
         lines = review_text.readlines()
         total = len(lines)
         for index, line in tqdm(enumerate(lines), total=total, unit='line'):
+            logging.info('Starting to process file')
             two_grams = get_ngrams(line, 2)
             for gram in two_grams:
                 if gram in frequent_phrases:
                     line = line.replace(gram, '_'.join(gram.split()))
-
-            updated_review_text.writelines(line)
+            updated_review_text.writelines(line + '\n')
     logging.info('Output file: %s is written with most frequent phrases updated', output_file)
 
 
