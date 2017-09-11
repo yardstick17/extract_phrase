@@ -1,14 +1,13 @@
 import collections
-
 import logging
 from concurrent.futures import ProcessPoolExecutor
 from functools import partial
 
 import nltk
+import pandas as pd
 from nltk.tokenize import word_tokenize
 from nltk.util import ngrams
 from tqdm import tqdm
-import pandas as pd
 
 from nlp.chunker import Chunker
 from nlp.pattern_grammer import PatternGrammar
@@ -89,10 +88,10 @@ def extract_phrases(filepath):
         file_read_iterator = file.readlines()
         logging.info('Initializing for roller coaster ride')
         overall_top_phrases_dict = dict()
-        for batch_lines in split_every(size=10000, iterable=tqdm(file_read_iterator, unit='line processed')):
+        for batch_lines in split_every(size=10000, iterable=tqdm(file_read_iterator, unit='line processed', ncols=120)):
             logging.info('Length of line being processed:{}'.format(len(batch_lines)))
             logging.debug('Length of single-line in batch  being processed:{}'.format(len(batch_lines[0])))
-            lines_list = [StringCleaner.clean(line).rstrip('\n') for line in tqdm(batch_lines)]
+            lines_list = [StringCleaner.clean(line).rstrip('\n') for line in batch_lines]
             text = ' '.join(lines_list)
             logging.debug('Processing text:{}..'.format(text[:100]))
             batch_top_phrases_dict = dict(frequent_phrases(text, top_k=100))
@@ -141,7 +140,7 @@ def process_large_text_file(input_file, output_file):
     frequent_phrases_dict = {key: value for key, value in frequent_phrases_dict.items() if value > 10}
     logging.info('Got a frequent_phrases_dict of size:{} after pruning.'.format(len(frequent_phrases_dict)))
     frequent_phrases = set(frequent_phrases_dict.keys())
-    with open(input_file, "r") as review_text, open(output_file, "w") as updated_review_text:
+    with open(input_file, 'r') as review_text, open(output_file, 'w') as updated_review_text:
         lines = review_text.readlines()
         total = len(lines)
         for index, line in tqdm(enumerate(lines), total=total, unit='line'):
