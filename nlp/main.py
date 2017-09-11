@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 import collections
 import logging
 from concurrent.futures import ProcessPoolExecutor
@@ -89,7 +90,7 @@ def extract_phrases(filepath):
         logging.info('Initializing for roller coaster ride')
         overall_top_phrases_dict = dict()
         for batch_lines in split_every(size=10000, iterable=tqdm(file_read_iterator, unit='line processed', ncols=120)):
-            logging.info('Length of line being processed:{}'.format(len(batch_lines)))
+            logging.debug('Length of line being processed:{}'.format(len(batch_lines)))
             logging.debug('Length of single-line in batch  being processed:{}'.format(len(batch_lines[0])))
             lines_list = [StringCleaner.clean(line).rstrip('\n') for line in batch_lines]
             text = ' '.join(lines_list)
@@ -110,8 +111,7 @@ def update_top_phrase_dict(overall_top_phrases_dict, batch_top_phrases_dict):
             overall_top_phrases_dict[key] += batch_top_phrases_dict[key]
         else:
             overall_top_phrases_dict[key] = batch_top_phrases_dict[key]
-
-    return dict(sorted(overall_top_phrases_dict.items(), reverse=True)[:TOP_PHRASE_COUNT])
+    return dict(sorted(overall_top_phrases_dict.items(), key=lambda x : x[1], reverse=True)[:TOP_PHRASE_COUNT])
 
 
 def get_ngrams(text, n):
