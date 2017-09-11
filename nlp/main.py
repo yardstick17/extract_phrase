@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 import collections
 import logging
 from concurrent.futures import ProcessPoolExecutor
@@ -111,7 +110,7 @@ def update_top_phrase_dict(overall_top_phrases_dict, batch_top_phrases_dict):
             overall_top_phrases_dict[key] += batch_top_phrases_dict[key]
         else:
             overall_top_phrases_dict[key] = batch_top_phrases_dict[key]
-    return dict(sorted(overall_top_phrases_dict.items(), key=lambda x : x[1], reverse=True)[:TOP_PHRASE_COUNT])
+    return dict(sorted(overall_top_phrases_dict.items(), key=lambda x: x[1], reverse=True)[:TOP_PHRASE_COUNT])
 
 
 def get_ngrams(text, n):
@@ -132,19 +131,26 @@ def split_every(size, iterable):
 @click.command()
 @click.option('--input_file', '-i', help='The input file need to be processed')
 @click.option('--output_file', '-o', help='The out file need to be written after processing')
-def process_large_text_file(input_file, output_file):
+@click.option('--frequent_phrases_dict_path', '-fpd', help='frequent_phrases_dict either given else extracted from text',
+              default=None)
+def process_large_text_file(input_file, output_file, frequent_phrases_dict_path):
     logging.info('Evaluating file: {} for extracting frequent tags'.format(input_file))
-    frequent_phrases_dict = extract_phrases(input_file)
-    pd.to_pickle(frequent_phrases_dict, 'frequent_phrases_dict.pkl')
-    logging.info('Got a frequent_phrases_dict of size:{}'.format(len(frequent_phrases_dict)))
-    frequent_phrases_dict = {key: value for key, value in frequent_phrases_dict.items() if value > 10}
-    logging.info('Got a frequent_phrases_dict of size:{} after pruning.'.format(len(frequent_phrases_dict)))
+    threshold_freq = 10
+    if frequent_phrases_dict_path is None:
+        frequent_phrases_dict = extract_phrases(input_file)
+        pd.to_pickle(frequent_phrases_dict, '/tmp/{}'.format(frequent_phrases_dict_path))
+        logging.info('Got a frequent_phrases_dict of size:{}'.format(len(frequent_phrases_dict)))
+        frequent_phrases_dict = {key: value for key, value in frequent_phrases_dict.items() if value > threshold_freq}
+    else:
+        frequent_phrases_dict = pd.read_pickle(frequent_phrases_dict_path)
+
+    logging.info('Got a frequent_phrases_dict of size:{} after pruning with threshold of {threshold_freq}.'.format(
+        len(frequent_phrases_dict), threshold_freq=threshold_freq))
     frequent_phrases = set(frequent_phrases_dict.keys())
-    with open(input_file, 'r') as review_text, open(output_file, 'w') as updated_review_text:
+    with open(input_file, "r") as review_text, open(output_file, "w") as updated_review_text:
         lines = review_text.readlines()
         total = len(lines)
         for index, line in tqdm(enumerate(lines), total=total, unit='line'):
-            logging.info('Starting to process file')
             two_grams = get_ngrams(line, 2)
             for gram in two_grams:
                 if gram in frequent_phrases:
